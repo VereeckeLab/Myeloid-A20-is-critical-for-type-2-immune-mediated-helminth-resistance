@@ -140,6 +140,7 @@ rownames(M1_dds_vst_DE) <- rowData(M1_dds_vst_DE)[["gene_name"]] #set rownames e
 M2_dds_vst_DE <- dds_vst[rowData(dds_vst)[["gene_name"]] %in% DE_genes_M2, ] # important genes genes_m2 contains gene names
 rownames(M2_dds_vst_DE) <- rowData(M2_dds_vst_DE)[["gene_name"]] #set rownames either "ensembl_id" or "gene_name"
 
+# Get top M1 genes based on DEG results
 mat <- assay(M1_dds_vst_DE)
 head(mat)
 head(mat)
@@ -148,45 +149,24 @@ colnames(mat) <- gsub(pattern = "^X", replacement = "", x = colnames(mat))
 colnames(mat) <- coldata[,"sample"]
 keep <- na.omit(coldata[coldata$tissue == "COLON", "sample" ])
 mat <- rownames_to_column(as.data.frame(mat), "Gene.name")
-
-
 top <- mat
 colnames(top)
 top <- top[,c(keep,"Gene.name")]
 top <- column_to_rownames(top, "Gene.name")
-nrow(top)
+top <- top[!(rownames(top) %in% c("Cxcl3","H2-Ob","Acpp","Smim3","Dusp1","Tmem119","H2.Ob")),]
 
+# create heatmap anno df
 anno <- as.data.frame(colData(M1_dds_vst_DE)[, c("condition","sample"), drop = FALSE])
 rownames(anno) <- NULL
 anno <- column_to_rownames(anno, "sample")
-
-# annotation colors
 levels(colData(M1_dds_vst_DE)$condition)
 annoCol<-list(condition=c(colon_steady_state_A20="red", colon_steady_state_wt="blue"))
 
+# set collor palettes
 pal <- colorpanel(256, "#00adef", "white", "#ff1493")
-pheatmap(top,
-         cluster_cols=F,
-         color = pal,
-         #annotation_col= anno, #add grouping above heatmap
-         #annotation_colors = annoCol,
-         cluster_rows = T,
-         show_rownames = T,
-         show_colnames = F,
-         #border_color = NA,
-         fontsize = 12,
-         scale = "row",
-         fontsize_row = 10,
-         height = 20,
-         main = "")
-
-nrow(top)
-top <- top[!(rownames(top) %in% c("Cxcl3","H2-Ob","Acpp","Smim3","Dusp1","Tmem119","H2.Ob")),]
-nrow(top)
-head(top)
 
 
-# order according to there log2FC in the results
+# order heatmap according to there log2FC in the results (top)
 datas <- assay(M1_dds_vst_DE)
 datas <- datas[!(rownames(datas) %in% c("Cxcl3","H2-Ob","Acpp","Smim3","Dusp1","Tmem119","H2.Ob")),]
 res_genes <- results[results$Gene.name %in% rownames(datas),]
@@ -195,7 +175,7 @@ res_genes <- res_genes[order(res_genes$log2FoldChange, decreasing = TRUE),"Gene.
 #res_genes <- make.names(res_genes) 
 top_most_var <- top[match(deframe(res_genes), rownames(top)),]
 
-p2 <- pheatmap(top_most_var[1:25,],
+p <- pheatmap(top_most_var[1:25,],
          cluster_cols=F,
          color = pal,
          #annotation_col= anno, #add grouping above heatmap
@@ -209,4 +189,4 @@ p2 <- pheatmap(top_most_var[1:25,],
          fontsize_row = 20,
          height = 20,
          main = "")
-ggsave("Data/Figures/colon_A20_vs_WT_M1_heatmap.png",plot = p2,units = "px", width = 650, height = 1200, dpi = 85)
+ggsave("Data/Figures/colon_A20_vs_WT_M1_heatmap.png",plot = p,units = "px", width = 650, height = 1200, dpi = 85)
