@@ -631,14 +631,10 @@ set <- c("F","E","D","B")
 name <- "Colon samples"
 # Subset
 subset_dds <- filtered_dds[,filtered_dds$group %in% set]
-#subset_dds@colData
 # Drop unused levels
 subset_dds$condition <- droplevels(subset_dds$condition)
 subset_dds$group <- droplevels(subset_dds$group)
 subset_dds$genotype <- droplevels(subset_dds$genotype)
-  
-#assign(paste0("Subset_dds_",name),subset_dds)
-#subset_dds_obj_name_vector <- append(subset_dds_obj_name_vector,paste0("Subset_dds_",name))
   
 vsd_obj <- vst(subset_dds, blind = TRUE)
 vsd_obj@colData$type
