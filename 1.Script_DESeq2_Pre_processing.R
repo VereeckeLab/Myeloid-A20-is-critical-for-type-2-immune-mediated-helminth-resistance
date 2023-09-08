@@ -20,6 +20,7 @@ library(ashr)
 library(org.Mm.eg.db)
 library(fgsea)
 library(gplots)
+library(GSVA)
 
 source("2.Script_Functions.R")
 
@@ -199,3 +200,4 @@ gc()
 ########### Save DESeq2 Object
 ################################################################################
 saveRDS(filtered_dds, "Data/DESeq2_object.rds")
+saveRDS(dds, "Data/DESeq2_unfiltered_object.rds")

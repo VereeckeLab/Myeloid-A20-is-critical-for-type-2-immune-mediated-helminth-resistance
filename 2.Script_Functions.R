@@ -144,3 +144,74 @@ get_paper_volcano_plot <- function(result_table = results,
     )
   print(volcano_plot)
 }
+
+# GSEA PATHWAY PLOT
+GSEA_plot <- function (fgsea_results,
+                       NES_cutoff = 1.5,
+                       npathw = 20,
+                       color_down = "#00adef",
+                       color_up = "#ff1493",
+                       title = "No title",
+                       reverse_order = T,
+                       y_text_size = 7 ) {
+  n <- npathw/2
+  fgsea_results <- mutate(fgsea_results, short_name = str_split_fixed(fgsea_results$pathway,"_",2)[,2])
+  fgsea_results$short_name <- str_replace_all(fgsea_results$short_name,"_"," ")
+  print(fgsea_results$short_name)
+  fgsea_results$short_name <- str_replace_all(fgsea_results$short_name," UP","")
+  fgsea_results$short_name <- str_replace_all(fgsea_results$short_name," DN","")
+  # Add table tag
+  fgsea_results <- mutate(fgsea_results, Regulated = case_when(NES > 0 ~ "Up-regulated",
+                                                               NES < 0 ~ "Down-regulated",
+                                                               T ~ "Unchanged"))
+  # order rows
+  if (reverse_order == T){
+    # Fetch top 20
+    up <- fgsea_results[fgsea_results$Regulated == "Up-regulated",]
+    up <- up[order(up$NES, decreasing = F),]
+    
+    down <- fgsea_results[fgsea_results$Regulated == "Down-regulated",]
+    down <- down[order(down$NES, decreasing = F),]
+    
+    top20 <- rbind(tail(up,n),head(down,n))
+  } else {
+    up <- fgsea_results[fgsea_results$Regulated == "Up-regulated",]
+    up <- up[order(up$NES, decreasing = F),]
+    
+    down <- fgsea_results[fgsea_results$Regulated == "Down-regulated",]
+    down <- down[order(down$NES, decreasing = F),]
+    
+    top20 <- rbind(head(down,n),tail(up,n))
+  }
+  
+  # Check for short names already present and remove them for now
+  top20 <- top20[duplicated(top20$short_name) == F,]
+  # lock in factor level order
+  top20$short_name <- factor(top20$short_name, levels = top20$short_name)
+  
+  p <- ggplot(top20,aes(short_name, NES)) +
+    geom_bar(stat= "identity", aes(fill = Regulated))+
+    scale_fill_manual(values=c(color_down, color_up)) +
+    coord_flip() +
+    #scale_y_continuous(limits = c(-2, 2)) +
+    geom_hline(yintercept = 0) +
+    labs(x = "", y = "NES")+
+    theme(text = element_text(family = "Calibri",color = "black"),
+          #axis.text.y = element_text(size = y_text_size), 
+          #plot.title = element_text(hjust = 1),
+          axis.ticks.y = element_blank(),
+          axis.line.x = element_line(),
+          panel.background = element_rect(fill = "white"),
+          #axis.text = element_text(color = "black"),
+          axis.title = element_text(face = "plain", color = "black",size = 28,hjust = 0.5),
+          axis.text.y = element_text(color = "black", size = 25),
+          axis.text.x = element_text(color = "black", size = 25),
+          plot.title = element_text(face = "bold", color = "black",size = 26,hjust = 0.5), #0.5
+          legend.position = "None",
+          #legend.position = "top",
+          #legend.text = element_text(size = 23),
+          #legend.title = element_text(size = 26, face = "bold")
+    ) +
+    ggtitle(title)
+  print(p)
+}

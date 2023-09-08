@@ -20,6 +20,7 @@ library(ashr)
 library(org.Mm.eg.db)
 library(fgsea)
 library(gplots)
+library(GSVA)
 
 source("2.Script_Functions.R")
 
@@ -28,9 +29,15 @@ source("2.Script_Functions.R")
 ################################################################################
 # Load dds object created in 1.Script_DESeq2_Pre_processing.R
 filtered_dds <- readRDS("Data/DESeq2_object.rds")
+dds <- readRDS("Data/DESeq2_unfiltered_object.rds")
 
 # Load annotation file
 anno_file <- read_csv("Data/GRCm39_rel104_full_annotation.txt")
+
+# File containing M1/M2 linked genes
+data_in <- read_excel(path = "Data/M1_M2_genes.xlsx")
+# MsigDB C2 genesets
+MsigdbC2 <- readRDS("Data/Mm.c2.all.v7.1.entrez.rds")
 
 # Set cutoffs
 prefilter_cutoff <- 10
@@ -42,7 +49,7 @@ factor_levels <- c("condition","group","genotype","tissue","type")
 
 
 ################################################################################
-########### DE analysis colon A20 vs WT (group A vs E)
+########### DE analysis colon A20 vs WT (group D vs B)
 ################################################################################
 # Subset dds object
 subset_dds <- filtered_dds[,filtered_dds[["group"]] %in% c("D","B")] 
@@ -123,7 +130,6 @@ ggsave("Data/Figures/colon_A20_vs_WT.png",units = "px", width = 960, height = 12
 ################################################################################
 # M1 and M2
 dds_vst <- vst(f_dds_DE, blind = TRUE)
-data_in <- read_excel(path = "Data/M1_M2_genes.xlsx")
 genes_m1 <- as.vector(na.omit(data_in$M1))
 genes_m2 <- as.vector(na.omit(data_in$M2))
 # Expand rowData(dds_vst) with ensembl_id and gene_name
@@ -190,3 +196,145 @@ p <- pheatmap(top_most_var[1:25,],
          height = 20,
          main = "")
 ggsave("Data/Figures/colon_A20_vs_WT_M1_heatmap.png",plot = p,units = "px", width = 650, height = 1200, dpi = 85)
+
+################################################################################
+########### GSEA (Figure 1G)
+################################################################################
+#### GSEA
+shrunk_results <- read_xlsx("Data/Results/colon_A20_vs_WT_GSEA_filtered.xlsx")
+DE_shrunk_results <- shrunk_results[shrunk_results$DE_gene == T,]
+# Generate ranked gene file
+ranks_lfc <- shrunk_results[order(shrunk_results$log2FoldChange,decreasing = T),c("Entrez_GSEA","log2FoldChange")] # GSEA YOU CAN DO FROM NON DE GENES OR FROM DE GENES
+ranks_lfc_DE <- DE_shrunk_results[order(DE_shrunk_results$log2FoldChange,decreasing = T),c("Entrez_GSEA","log2FoldChange")]
+ranks_lfc_DE <- deframe(ranks_lfc_DE)
+# If duplicate gene names present, average the values
+if( sum(duplicated(ranks_lfc$Entrez_GSEA)) > 0) {
+  ranks_lfc <- aggregate(.~Entrez_GSEA, FUN = mean, data = ranks_lfc)
+  ranks_lfc <- ranks_lfc[order(ranks_lfc$log2FoldChange, decreasing = T),]
+}
+# Turn the dataframe into a named vector for fgsea()
+ranks_lfc <- deframe(ranks_lfc)
+
+# Control how specific the analysis is with minSize and maxSize
+fgsea_results <- fgsea(MsigdbC2,
+                       ranks_lfc,
+                       minSize = 3,
+                       maxSize = 1000)
+# Full Figure
+GSEA_plot(fgsea_results,npathw = 40)
+# Select pathways from the top significant results
+test_set <- fgsea_results[fgsea_results$pathway %in% c(#"REACTOME_INTERFERON_ALPHA_BETA_SIGNALING",
+                                                       "FOSTER_TOLERANT_MACROPHAGE_UP",
+                                                       "BROWNE_INTERFERON_RESPONSIVE_GENES",
+                                                       "PID_IL12_2PATHWAY",
+                                                       #"ZHANG_INTERFERON_RESPONSE",
+                                                       "BOSCO_TH1_CYTOTOXIC_MODULE",
+                                                       "SANA_TNF_SIGNALING_UP",
+                                                       "PID_IL23_PATHWAY",
+                                                       "SANA_RESPONSE_TO_IFNG_UP",
+                                                       #"GRANDVAUX_IRF3_TARGETS_UP",
+                                                       #"REACTOME_IRF3_MEDIATED_INDUCTION_OF_TYPE_I_IFN",
+                                                       "SEMENZA_HIF1_TARGETS",
+                                                       #"BIOCARTA_NO2IL12_PATHWAY",
+                                                       "KEGG_TOLL_LIKE_RECEPTOR_SIGNALING_PATHWAY",
+                                                       "REACTOME_INFLAMMASOMES",
+                                                       "TAVOR_CEBPA_TARGETS_UP",
+                                                       "REACTOME_INTERFERON_GAMMA_SIGNALING",
+                                                       #"REACTOME_INTERLEUKIN_1_FAMILY_SIGNALING",
+                                                       #"REACTOME_TOLL_LIKE_RECEPTOR_CASCADES",
+                                                       "PID_IL27_PATHWAY",
+                                                       #"MARTIN_NFKB_TARGETS_UP",
+                                                       "COATES_MACROPHAGE_M1_VS_M2_DN",
+                                                       #"REACTOME_TOLL_LIKE_RECEPTOR_TLR1_TLR2_CASCADE",
+                                                       #"REACTOME_TOLL_LIKE_RECEPTOR_4_TLR4_CASCADE",
+                                                       "REACTOME_INTERLEUKIN_1_SIGNALING",
+                                                       "MARTINELLI_IMMATURE_NEUTROPHIL_DN"
+                                                       #"REACTOME_TRAF6_MEDIATED_NF_KB_ACTIVATION",
+                                                       #"AUJLA_IL22_AND_IL17A_SIGNALING"
+                                                       )]
+p3 <- GSEA_plot(test_set,npathw = 10000,NES_cutoff = 0,color_down = "#ff1493",title = "")
+ggsave("Data/Figures/colon_A20_vs_WT_GSEA.png",plot = p3,units = "px", width = 900, height = 1200, dpi = 85)
+
+################################################################################
+########### GSVA (Figure 1H)
+################################################################################
+# fetch normalized counts
+dds <- estimateSizeFactors(dds)
+norm.counts <- as.data.frame(counts(dds,normalized = T))
+# add annotation
+annotation <- anno_file
+norm.counts <- rownames_to_column(norm.counts,var = "Gene.stable.ID")
+norm.counts <- merge(x = norm.counts, y = annotation[,c("Gene.stable.ID","Gene.name")], by = "Gene.stable.ID" , all.x = T)
+# remove gene counts
+norm.counts$Gene.stable.ID <- NULL
+# remove empty gene.name columns
+table(norm.counts$Gene.name != "")
+norm.counts <- norm.counts[norm.counts$Gene.name != "",]
+# remove na
+table(is.na(norm.counts$Gene.name))
+norm.counts <- norm.counts[!is.na(norm.counts$Gene.name),]
+
+# average out duplicates
+if( sum(duplicated(norm.counts$Gene.name)) > 0) {
+  norm.counts <- aggregate(.~Gene.name, FUN = mean, data = norm.counts)
+}
+# add gene names to rownames
+norm.counts <- column_to_rownames(norm.counts,var = "Gene.name")
+# change to matrix
+norm.counts <- as.matrix(norm.counts)
+
+# fetch gene sets M1 and M2
+genes_m1 <- as.vector(na.omit(data_in$M1))
+genes_m2 <- as.vector(na.omit(data_in$M2))
+geneset <- list(genes_m1,genes_m2)
+names(geneset) <- c("CLASSICAL ACTIVATION OF MACROPHAGES","ALTERNATIVE ACTIVATION OF MACROPHAGES")
+
+# GSVA
+gsva_results <- gsva(norm.counts,geneset, method = "gsva")
+score <- as.data.frame(t(gsva_results))
+score <- rownames_to_column(score, var = "samples")
+# add metadata
+score$Condition <- colData(dds)$condition
+levels(score$Condition)
+score$Condition <-  factor(score$Condition,levels = c("colon_steady_state_wt","colon_steady_state_A20","colon_trichuris_wt","colon_trichuris_A20","joint_steady_state_wt","joint_steady_state_A20"))
+score$Genotype <- colData(dds)$genotype 
+levels(score$Genotype) <- c("A20\u1d50\u02b8\u1d49\u02e1\u207b\u1d37\u1d3c","WT") #"\u0394-A20"
+score$Genotype <-  factor(score$Genotype,levels = c("WT","A20\u1d50\u02b8\u1d49\u02e1\u207b\u1d37\u1d3c"))
+score$name <- score$Condition
+levels(score$name) <- c("Colon Steady State","Colon Steady State","Colon T. muris","Colon T. muris","Joint Steady State","Joint Steady State")
+score$Tissue <- score$Condition
+levels(score$Tissue) <- c("Colon","Colon","Colon","Colon","Joint","Joint")
+score$State <- score$Condition
+levels(score$State) <- c("Steady State","Steady State","T. muris","T. muris","Steady State","Steady State")
+score$Shape <- score$Condition
+levels(score$State) <- c("dot","circle","dot","dot","dot","circle")
+score$Color <- score$Condition
+levels(score$State) <- c("black","black","blue","red","black","black")
+
+
+# ONLY SS COLON M1
+score.colon <- score[score$Condition %in% c("colon_steady_state_wt","colon_steady_state_A20"),]
+ggplot(score.colon,aes(x= Genotype, y= .data[["CLASSICAL ACTIVATION OF MACROPHAGES"]], group = Genotype , fill = name, shape = Shape )) +
+  stat_boxplot(geom ='errorbar',width = 0.25) + # horizontal lines on boxplot print first
+  geom_boxplot(outlier.shape = NA, width = 0.6, lwd = 0.9) + facet_grid(. ~ name) +
+  scale_x_discrete(expand=c(0.8,0)) +
+  scale_shape_manual(values=c(16,1,16,16,16,1) , guide = "none") +
+  scale_fill_manual(values=c("white","white", "white")) +
+  ggtitle("CLASSICAL ACTIVATION") +
+  ylab("GSVA Enrichment Score") + xlab("") +
+  ylim(c(-0.45,0.21)) +
+  geom_point(aes(colour = Color), position=position_jitterdodge(dodge.width = 0.75), size = 6.5) +
+  scale_colour_manual(values=c("black", "black","blue", "red","black", "black"), guide = "none")+
+  theme_classic() +
+  theme(text = element_text(size = 26, color = "black"),
+        axis.text = element_text(size = 21, color = "black"),
+        axis.text.x = element_text(size = 32, color = "black"),
+        axis.title.y = element_text(size = 25, color = "black"),
+        strip.text.x = element_text(size = 25),
+        strip.background = element_rect(fill="grey"),
+        #legend.title = element_text(face = "bold"),
+        plot.title = element_text(size = 27,hjust = 0.5)) +
+  guides(fill = "none") +
+  stat_compare_means(comparisons = list(c("WT", "A20\u1d50\u02b8\u1d49\u02e1\u207b\u1d37\u1d3c")), label = "p.signif", size = 18, label.y = 0.14,vjust = -0.3, bracket.size = 0.9) +
+  stat_compare_means(comparisons = list(c("WT", "A20\u1d50\u02b8\u1d49\u02e1\u207b\u1d37\u1d3c")), size = 8, label.y = 0.14)
+ggsave("Data/Figures/colon_A20_vs_WT_M1_SS_GSVA.png", units = "px", width = 500, height = 1100, dpi=85)
