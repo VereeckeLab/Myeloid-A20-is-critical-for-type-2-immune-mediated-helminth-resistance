@@ -215,3 +215,26 @@ GSEA_plot <- function (fgsea_results,
     ggtitle(title)
   print(p)
 }
+
+# PCA plots
+get_PCA <- function(vsd_obj,title){
+  pcaData <- plotPCA(vsd_obj, intgroup=c("shape", "color"), returnData=TRUE)
+  percentVar <- round(100 * attr(pcaData, "percentVar"))
+  
+  pca <- ggplot(pcaData, aes(PC1, PC2, color=shape, shape=color)) +
+    geom_point(size=5) +
+    scale_shape_manual(values=c(17, 15),name = NULL) +
+    scale_color_manual(values=c("Blue","Red"),name = NULL) +
+    xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+    ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+    #ggtitle(title) +
+    coord_fixed() +
+    theme_classic() + 
+    theme(#legend.position=c(.89, .15),
+          legend.title = element_blank(),
+          legend.key.size = unit(0.5, "cm"),
+          legend.spacing.y = unit(0.0001, 'cm'),
+          text = element_text(size = 20))
+  print(pca) + stat_ellipse(type = "norm", linetype = 2, level = 0.8)
+  
+}

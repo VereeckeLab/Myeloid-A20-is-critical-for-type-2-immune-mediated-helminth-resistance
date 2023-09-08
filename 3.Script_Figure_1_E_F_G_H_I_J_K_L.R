@@ -344,6 +344,17 @@ ggsave("Data/Figures/colon_A20_vs_WT_M1_SS_GSVA.png", units = "px", width = 500,
 
 
 ################################################################################
+########### PCA (Supplementary Figure 2E)
+################################################################################
+dds_vst@colData$color <- c(rep("Steady state",10))
+dds_vst@colData$shape <- c(rep("WT",5),rep("\u0394-A20",5))
+
+dds_vst@colData$shape <- as.factor(dds_vst@colData$shape)
+dds_vst@colData$color <- as.factor(dds_vst@colData$color)
+# plot figure
+get_PCA(dds_vst,"PCA")
+
+################################################################################
 ########### DE analysis Joint A20 vs WT (group D vs B)
 ################################################################################
 # Subset dds object
@@ -601,3 +612,60 @@ wilcox.test(score.joint[score.joint$Genotype == "WT","CLASSICAL ACTIVATION OF MA
 wilcox.test(score.joint[score.joint$Genotype == "WT","ALTERNATIVE ACTIVATION OF MACROPHAGES"],
             score.joint[score.joint$Genotype == "A20\u1d50\u02b8\u1d49\u02e1\u207b\u1d37\u1d3c","ALTERNATIVE ACTIVATION OF MACROPHAGES"])
 
+
+################################################################################
+########### PCA (Supplementary Figure 2F)
+################################################################################
+dds_vst@colData$color <- c(rep("Steady state",9)) # ,rep("Trichuris muris",5)
+dds_vst@colData$shape <- c(rep("WT",4),rep("\u0394-A20",5))
+
+dds_vst@colData$shape <- as.factor(dds_vst@colData$shape)
+dds_vst@colData$color <- as.factor(dds_vst@colData$color)
+# plot figure
+get_PCA(dds_vst,"PCA")
+
+################################################################################
+########### PCA (Supplementary Figure 4C)
+################################################################################
+set <- c("F","E","D","B")
+name <- "Colon samples"
+# Subset
+subset_dds <- filtered_dds[,filtered_dds$group %in% set]
+#subset_dds@colData
+# Drop unused levels
+subset_dds$condition <- droplevels(subset_dds$condition)
+subset_dds$group <- droplevels(subset_dds$group)
+subset_dds$genotype <- droplevels(subset_dds$genotype)
+  
+#assign(paste0("Subset_dds_",name),subset_dds)
+#subset_dds_obj_name_vector <- append(subset_dds_obj_name_vector,paste0("Subset_dds_",name))
+  
+vsd_obj <- vst(subset_dds, blind = TRUE)
+vsd_obj@colData$type
+vsd_obj@colData$genotype
+
+vsd_obj@colData$color <- c(rep("Steady state",10),rep("Trichuris muris",8))
+vsd_obj@colData$shape <- c(rep("WT",5),rep("\u0394-A20",5),rep("WT",4),rep("\u0394-A20",4))
+
+vsd_obj@colData$shape <- as.factor(vsd_obj@colData$shape)
+vsd_obj@colData$color <- as.factor(vsd_obj@colData$color)
+
+# plot figure
+pcaData <- plotPCA(vsd_obj, intgroup=c("shape", "color"), returnData=TRUE)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+pca <- ggplot(pcaData, aes(PC1, PC2, color=shape, shape=color)) +
+  geom_point(size=5) +
+  scale_shape_manual(values=c(17, 15),name = NULL) +
+  scale_color_manual(values=c("Blue","Red"),name = NULL) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  #ggtitle(title) +
+  coord_fixed() +
+  theme_classic() + 
+  theme(legend.position=c(.89, .15),
+        legend.title = element_blank(),
+        legend.key.size = unit(0.5, "cm"),
+        legend.spacing.y = unit(0.0001, 'cm'),
+        text = element_text(size = 20))
+print(pca) + stat_ellipse(type = "norm", linetype = 2, level = 0.8)
