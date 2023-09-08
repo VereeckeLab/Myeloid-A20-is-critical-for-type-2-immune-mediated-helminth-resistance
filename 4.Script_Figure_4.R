@@ -21,6 +21,7 @@ library(org.Mm.eg.db)
 library(fgsea)
 library(gplots)
 library(GSVA)
+library(genekitr)
 
 source("2.Script_Functions.R")
 
@@ -324,3 +325,160 @@ wilcox.test(score.colon.tm[score.colon.tm$Genotype == "WT","CLASSICAL ACTIVATION
 
 wilcox.test(score.colon.tm[score.colon.tm$Genotype == "WT","ALTERNATIVE ACTIVATION OF MACROPHAGES"],
             score.colon.tm[score.colon.tm$Genotype == "A20\u1d50\u02b8\u1d49\u02e1\u207b\u1d37\u1d3c","ALTERNATIVE ACTIVATION OF MACROPHAGES"])
+
+
+################################################################################
+########### Heatmaps M1 and M2 (Figure 4D)
+################################################################################
+# M1 and M2
+dds_vst <- vst(f_dds_DE, blind = TRUE)
+genes_m1 <- as.vector(na.omit(data_in$M1))
+genes_m2 <- as.vector(na.omit(data_in$M2))
+
+# Expand rowData(dds_vst) with ensembl_id and gene_name
+rowData(dds_vst)[["ensembl_id"]] <- rownames(rowData(dds_vst))
+rowData(dds_vst)[["gene_name"]] <- anno_file$Gene.name[match(rownames(rowData(dds_vst)), anno_file$Gene.stable.ID)]
+
+DE_genes_M1 <- deframe(results[(results$Gene.name %in% genes_m1 & results$DE_gene == T), "Gene.name" ])
+DE_genes_M2 <- deframe(results[(results$Gene.name %in% genes_m2 & results$DE_gene == T), "Gene.name" ])
+
+# Classically activated macrophages (M1) 
+M1_dds_vst_DE <- dds_vst[rowData(dds_vst)[["gene_name"]] %in% DE_genes_M1, ] # important genes genes_m1 contains gene names
+rownames(M1_dds_vst_DE) <- rowData(M1_dds_vst_DE)[["gene_name"]] #set rownames either "ensembl_id" or "gene_name"
+# Alternatively activated macrophages (M2)
+M2_dds_vst_DE <- dds_vst[rowData(dds_vst)[["gene_name"]] %in% DE_genes_M2, ] # important genes genes_m2 contains gene names
+rownames(M2_dds_vst_DE) <- rowData(M2_dds_vst_DE)[["gene_name"]] #set rownames either "ensembl_id" or "gene_name"
+
+
+### M1
+mat <- assay(M1_dds_vst_DE)
+coldata <- colData(M1_dds_vst_DE)
+colnames(mat) <- gsub(pattern = "^X", replacement = "", x = colnames(mat))
+colnames(mat) <- coldata[, "sample" ]
+keep <- na.omit(coldata[coldata$tissue == "COLON", "sample" ])
+mat <- rownames_to_column(as.data.frame(mat), "Gene.name")
+
+top <- mat
+top <- top[,c(keep,"Gene.name")]
+top <- column_to_rownames(top, "Gene.name")
+top <- top[!(rownames(top) %in% c("")),]
+
+anno <- as.data.frame(colData(M1_dds_vst_DE)[, c("condition","sample"), drop = FALSE])
+rownames(anno) <- NULL
+anno <- column_to_rownames(anno, "sample")
+
+# annotation colors
+levels(colData(M1_dds_vst_DE)$condition)
+annoCol<-list(condition=c(colon_trichuris_A20="red", colon_trichuris_wt="blue"))
+pal <- colorpanel(256, "#00adef", "white", "#ff1493")
+
+# order according to there log2FC in the results
+datas <- assay(M1_dds_vst_DE)
+datas <- datas[!(rownames(datas) %in% c("")),]
+res_genes <- results[results$Gene.name %in% rownames(datas),]
+nrow(res_genes) == nrow(top) # needs to be TRUE
+res_genes <- res_genes[order(res_genes$log2FoldChange, decreasing = TRUE),"Gene.name"]
+#res_genes <- make.names(res_genes) 
+top_most_var <- top[match(deframe(res_genes), rownames(top)),]
+
+p2 <- pheatmap(top_most_var[1:25,],
+         cluster_cols=F,
+         color = pal,
+         #annotation_col= anno, #add grouping above heatmap
+         #annotation_colors = annoCol, #add grouping above heatmap
+         cluster_rows = F,
+         show_rownames = T,
+         show_colnames = F,
+         #border_color = NA,
+         fontsize = 16,
+         scale = "row",
+         fontsize_row = 20,
+         height = 20,
+         main = "")
+ggsave("Data/Figures/colon_A20_vs_WT_M1_TM_heatmap.png",plot = p2,units = "px", width = 650, height = 1200, dpi = 85)
+
+### M2
+mat <- assay(M2_dds_vst_DE)
+coldata <- colData(M2_dds_vst_DE)
+colnames(mat) <- gsub(pattern = "^X", replacement = "", x = colnames(mat))
+colnames(mat) <- coldata[, "sample" ]
+keep <- na.omit(coldata[coldata$tissue == "COLON", "sample" ])
+mat <- rownames_to_column(as.data.frame(mat), "Gene.name")
+
+top <- mat
+colnames(top)
+top <- top[,c(keep,"Gene.name")]
+top <- column_to_rownames(top, "Gene.name")
+top <- top[!(rownames(top) %in% c("")),]
+
+anno <- as.data.frame(colData(M2_dds_vst_DE)[, c("condition","sample"), drop = FALSE])
+rownames(anno) <- NULL
+anno <- column_to_rownames(anno, "sample")
+
+# annotation colors
+levels(colData(M2_dds_vst_DE)$condition)
+annoCol<-list(condition=c(colon_trichuris_A20="red", colon_trichuris_wt="blue"))
+pal <- colorpanel(256, "#00adef", "white", "#ff1493")
+
+# order according to there log2FC in the results
+datas <- assay(M2_dds_vst_DE)
+datas <- datas[!(rownames(datas) %in% c("")),]
+datas <- datas[!(rownames(datas) %in% c("Jarid2","Cd300ld","F13a1","Lmnb1","Ctsb","Gda","Ralgds","Gab1","Clec5a","Slamf8","Ctsl","Chil1")),]
+res_genes <- results[results$Gene.name %in% rownames(datas),]
+nrow(res_genes) == nrow(top) # needs to be TRUE
+res_genes <- res_genes[order(res_genes$log2FoldChange, decreasing = TRUE),"Gene.name"]
+top_most_var <- top[match(deframe(res_genes), rownames(top)),]
+
+p2 <- pheatmap(top_most_var[1:25,], #top_most_var[1:25,]
+         cluster_cols=F,
+         color = pal,
+         #annotation_col= anno, #add grouping above heatmap
+         #annotation_colors = annoCol,
+         cluster_rows = F,
+         show_rownames = T,
+         show_colnames = F,
+         #border_color = NA,
+         fontsize = 16,
+         scale = "row",
+         fontsize_row = 20,
+         height = 20,
+         main = "")
+ggsave("Data/Figures/colon_A20_vs_WT_M2_TM_heatmap.png",plot = p2,units = "px", width = 650, height = 1200, dpi = 85)
+
+
+################################################################################
+########### GSEA Enrichment plot (Figure 4E)
+################################################################################
+# Fetch genesets
+gs <- geneset::getMsigdb(org = "mouse",category = "C2-CP-REACTOME")
+
+# Recreate genelist object
+entrez_gene <- deframe(shrunk_results[(shrunk_results$Gene.name %in% genes_m1),"Entrez_GSEA"])
+gs_name <- rep("CLASSICAL_ACTIVATION_OF_MACROPHAGES",length(shrunk_results[(shrunk_results$Gene.name %in% genes_m1),"Entrez_GSEA"]))
+m1_set <- data.frame(gs_name,entrez_gene)
+
+entrez_gene <- deframe(shrunk_results[(shrunk_results$Gene.name %in% genes_m2),"Entrez_GSEA"])
+gs_name <- rep("ALTERNATIVE_ACTIVATION_OF_MACROPHAGES",length(shrunk_results[(shrunk_results$Gene.name %in% genes_m2),"Entrez_GSEA"]))
+m2_set <- data.frame(gs_name,entrez_gene)
+
+set <- list("geneset" = rbind(gs$geneset,m1_set,m2_set),
+            "geneset_name" = NA,
+            "organism" = "mmusculus",
+            "type" = "msigdb")
+
+head(set$geneset)
+tail(set$geneset)
+
+# Run GSEA
+gse <- genGSEA(genelist = ranks_lfc, geneset = set, max_gset_size = 1000000, q_cutoff = 1 , min_gset_size = 0, p_cutoff = 1)
+pathways <- c("CLASSICAL_ACTIVATION_OF_MACROPHAGES","ALTERNATIVE_ACTIVATION_OF_MACROPHAGES")
+#genes <- c("Nos2", "Saa3")
+plot <- plotGSEA(gse, plot_type = "classic",
+                 show_pathway = pathways,
+                 show_gene = "",
+                 main_text_size = 13,
+                 colour = c("#00adef","#ff1493")
+                 #base.size = 15
+)  #+ theme(legend.text = 100)
+ggsave("Data/Figures/colon_A20_vs_WT_M2_TM_Enrichement_Plot.png",plot = plot,units = "px", width = 500, height = 1200, dpi = 85)
+
