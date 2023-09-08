@@ -8,10 +8,9 @@ In this repository you can find all the code used for the Bulk RNA-seq data anal
 
 - 1.Script_DESeq2_Pre_processing.R: Allows you to get the original DESeq2 Object used for all the analysis.
 - 2.Script_Functions.R: Contains all functions used for the analysis.
-- 3.Script_Figure_1_E_F_G_H_I_J_K_L.R: Script used for generating Figure 1 (E,F,G,H,I,J,K,L).
+- 3.Script_Figure_1_E_F_G_H_I_J_K_L.R: Script used for generating Figure 1 (E,F,G,H,I,J,K,L) & Supplementary Figure 2 (E,F) & Supplementary Figure 4C.
 - 4.Script_Figure_4.R: Script used for generating Figure 4.
-- 5.Script_Supplementary_Figure_2_E_F_Figure_4_C.R: Script used for generating all bulk RNA-seq related supplementary figures.
-- 6.session_info.txt: Contains all packages used and their respective versions for the analysis.
+- 5.session_info.txt: Contains all packages used and their respective versions for the analysis.
 
 Notes:
 - To be able to run the provided R scripts you need the raw_counts.csv file provided on GEOXXXXXX and additional files found in the data folder.
