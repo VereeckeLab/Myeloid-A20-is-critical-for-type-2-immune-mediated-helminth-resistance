@@ -16,4 +16,4 @@ Notes:
 - To be able to run the provided R scripts you need the raw_counts.csv file provided on GEOXXXXXX and additional files found in the data folder.
 
 # Citation
-TBA
+Preprint Manuscript: [![DOI:10.3389/fimmu.2024.1373745](http://img.shields.io/badge/DOI-10.3389/fimmu.2024.1373745.svg)](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2024.1373745/abstract)
