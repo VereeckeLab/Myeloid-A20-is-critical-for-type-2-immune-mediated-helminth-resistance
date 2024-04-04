@@ -17,4 +17,4 @@ Notes:
 
 # Citation
 Manuscript: [![DOI:10.3389/fimmu.2024.1373745](http://img.shields.io/badge/DOI-10.3389/fimmu.2024.1373745.svg)](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2024.1373745/abstract)
-
+Data:[![DOI](https://zenodo.org/badge/DOI/10.3389/fimmu.2024.1373745.svg)](https://doi.org/10.3389/fimmu.2024.1373745)
